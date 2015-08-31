@@ -226,7 +226,7 @@ kf = KFold(titanic.shape[0], n_folds=3, random_state=1)
 predictions = []
 for train, test in kf:
     train_target = titanic["Survived"].iloc[train]
-    full_test_predictions = []
+    full_predictions = []
     # Make predictions for each algorithm on each fold
     for alg, predictors in algorithms:
         # Fit the algorithm on the training data.
@@ -234,9 +234,9 @@ for train, test in kf:
         # Select and predict on the test fold.
         # The .astype(float) is necessary to convert the dataframe to all floats and avoid an sklearn error.
         test_predictions = alg.predict_proba(titanic[predictors].iloc[test,:].astype(float))[:,1]
-        full_test_predictions.append(test_predictions)
+        full_predictions.append(test_predictions)
     # Use a simple ensembling scheme -- just average the predictions to get the final classification.
-    test_predictions = (full_test_predictions[0] + full_test_predictions[1]) / 2
+    test_predictions = (full_predictions[0] + full_predictions[1]) / 2
     # Any value over .5 is assumed to be a 1 prediction, and below .5 is a 0 prediction.
     test_predictions[test_predictions <= .5] = 0
     test_predictions[test_predictions > .5] = 1
@@ -247,7 +247,7 @@ predictions = np.concatenate(predictions, axis=0)
 
 # Compute accuracy by comparing to the training data.
 accuracy = sum(predictions == titanic["Survived"]) / len(predictions)
-print(accuracy)
+print('Ensemble accuracy:', accuracy)
 print()
 
 # Add titles to the test set.
@@ -260,9 +260,14 @@ for k,v in title_mapping.items():
 titanic_test["Title"] = titles
 # Check the counts of each unique title.
 print(pandas.value_counts(titanic_test["Title"]))
-'''
+
 # Add the family size column.
-titanic_test["FamilySize"] = titanic_test["SibSp"] + titanic
+titanic_test["FamilySize"] = titanic_test["SibSp"] + titanic_test['Parch']
+
+# Add family ids.
+family_ids = titanic_test.apply(get_family_id, axis=1)
+family_ids[titanic_test["FamilySize"] < 3] = -1
+titanic_test["FamilyId"] = family_ids
 
 # The .apply method generates a new series
 titanic_test["NameLength"] = titanic_test["Name"].apply(lambda x: len(x))
@@ -293,8 +298,6 @@ predictions = predictions.astype(int)
 
 submission = pandas.DataFrame({
     'PassengerId': titanic_test['PassengerId'],
-    'Survived': titanic_test['Survived']
-})
+    'Survived': predictions})
 
 submission.to_csv("kaggle.csv", index=False)
-'''
